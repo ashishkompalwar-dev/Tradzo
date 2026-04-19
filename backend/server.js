@@ -10,7 +10,7 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:3000', credentials: true }));
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting
