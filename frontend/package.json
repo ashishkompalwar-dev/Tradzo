@@ -1,0 +1,12 @@
+{
+  "name": "tradzo-frontend",
+  "version": "1.0.0",
+  "description": "Tradzo Trading Platform Frontend",
+  "scripts": {
+    "dev": "npx serve . -p 3000",
+    "start": "npx serve . -p 3000"
+  },
+  "devDependencies": {
+    "serve": "^14.2.3"
+  }
+}
