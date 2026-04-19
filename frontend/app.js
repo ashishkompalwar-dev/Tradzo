@@ -271,12 +271,13 @@ async function sendChatMessage(rawMessage) {
       s.chatbot.messages = s.chatbot.messages.slice(-40);
     });
   } catch (error) {
+    const detail = error?.payload?.error || error?.message || "Unknown error";
     setState((s) => {
       s.chatbot.loading = false;
       s.chatbot.error = parseApiError(error, "Unable to fetch AI suggestions");
       s.chatbot.messages.push({
         role: "assistant",
-        text: "I could not connect to Gemini right now. Please ensure GEMINI_API_KEY is set in backend .env and try again.",
+        text: `I hit an error while contacting Gemini: ${detail}`,
         time: new Date().toLocaleTimeString(),
       });
       s.chatbot.messages = s.chatbot.messages.slice(-40);
@@ -575,7 +576,7 @@ function shellView() {
           </div>
         </header>
 
-        <section class="page">
+        <section class="page ${state.tab === "chatbot" ? "chatPage" : ""}">
           ${state.tab === "dashboard" ? dashboardView() : ""}
           ${state.tab === "markets" ? marketsView() : ""}
           ${state.tab === "demo" ? demoSharesView() : ""}
@@ -1014,22 +1015,36 @@ function chatbotView() {
   const chat = state.chatbot;
 
   return `
-    <div>
-      ${pageTitleHTML("AI Stock Coach", "Get practical tips and tricks for Indian stock market investing")}
+    <div class="chatScreen">
+      <aside class="card pad chatSidebar">
+        <h2 class="h2" style="margin-bottom:6px">AI Stock Coach</h2>
+        <p class="pMuted" style="margin-bottom:18px">Indian market tips, risk checks, and practical investing habits.</p>
 
-      <div class="card pad" style="margin-bottom:16px">
-        <p class="pMuted" style="margin-bottom:10px">Quick asks:</p>
-        <div class="tabs" style="margin:0">
+        <p class="pMuted" style="margin-bottom:10px">Quick prompts</p>
+        <div class="chatPromptList">
           ${chat.quickPrompts
             .map(
-              (p) => `<button class="tabBtn" data-action="chat:quick" data-prompt="${esc(p)}">${esc(p)}</button>`,
+              (p) => `<button class="tabBtn chatPromptBtn" data-action="chat:quick" data-prompt="${esc(p)}">${esc(p)}</button>`,
             )
             .join("")}
         </div>
-      </div>
 
-      <div class="card pad chatWrap">
-        <div class="chatFeed">
+        <div class="chatSideNote">
+          <p style="margin:0 0 6px;font-weight:600">Good usage pattern</p>
+          <p style="margin:0">Ask one stock-market problem at a time for better suggestions, then ask for an action checklist.</p>
+        </div>
+      </aside>
+
+      <section class="card chatMain">
+        <div class="chatHeader">
+          <div>
+            <p class="chatTitle">Gemini Assistant</p>
+            <p class="chatSub">Focused on Indian stock market education</p>
+          </div>
+          <button class="btnSecondary med" data-action="chat:clear">Clear Chat</button>
+        </div>
+
+        <div class="chatFeed" id="chatFeed">
           ${chat.messages
             .map(
               (m) => `
@@ -1047,23 +1062,23 @@ function chatbotView() {
             ? `
               <div class="chatRow assistant">
                 <div class="chatBubble assistant">
-                  <p>Thinking and preparing suggestions…</p>
+                  <p>Thinking through your query and preparing suggestions…</p>
                 </div>
               </div>
             `
             : ""}
         </div>
 
-        ${chat.error ? `<p class="pMuted" style="color:var(--red);margin:8px 0 0">${esc(chat.error)}</p>` : ""}
+        ${chat.error ? `<p class="pMuted" style="color:var(--red);margin:4px 18px 0">${esc(chat.error)}</p>` : ""}
 
-        <div class="chatComposer">
+        <div class="chatComposerWrap">
+          <div class="chatComposer">
           <input class="input" data-bind="chat.input" value="${esc(chat.input)}" placeholder="Ask about SIP discipline, stock selection, risk management, valuation, or sector allocation" />
-          <button class="btnSecondary med" data-action="chat:clear">Clear</button>
           <button class="btnPrimary med" data-action="chat:send" ${chat.loading ? "disabled" : ""}>Send</button>
+          </div>
+          <p class="pMuted" style="font-size:12px;margin-top:8px">Press Enter to send. Educational content only, not financial advice.</p>
         </div>
-
-        <p class="pMuted" style="font-size:12px;margin-top:10px">Educational content only. Not financial advice.</p>
-      </div>
+      </section>
     </div>
   `;
 }
@@ -1642,6 +1657,13 @@ function render() {
   }
 
   root.innerHTML = state.user ? shellView() : authView();
+
+  if (state.user && state.tab === "chatbot") {
+    const feed = root.querySelector("#chatFeed");
+    if (feed) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+  }
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
