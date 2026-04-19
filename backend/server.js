@@ -25,6 +25,7 @@ app.use('/api/ipo', require('./routes/ipo'));
 app.use('/api/stocks', require('./routes/stocks'));
 app.use('/api/tools', require('./routes/tools'));
 app.use('/api/alerts', require('./routes/alerts'));
+app.use('/api/chatbot', require('./routes/chatbot'));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'Tradzo API' }));
 

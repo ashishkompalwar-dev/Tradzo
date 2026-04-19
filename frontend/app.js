@@ -69,6 +69,24 @@ const state = {
     error: "",
   },
   demo: createDemoWallet(),
+  chatbot: {
+    input: "",
+    loading: false,
+    error: "",
+    messages: [
+      {
+        role: "assistant",
+        text: "Namaste! I am your Indian stock market assistant. Ask me for tips on SIP, risk management, sector rotation, stock analysis checklist, or beginner-friendly investing habits.",
+        time: new Date().toLocaleTimeString(),
+      },
+    ],
+    quickPrompts: [
+      "How should a beginner start investing in Indian stocks?",
+      "Give me a checklist before buying a stock in NSE.",
+      "How do I manage risk in a volatile market?",
+      "What is a good long-term SIP discipline strategy?",
+    ],
+  },
   profile: {
     loading: false,
     error: "",
@@ -212,6 +230,60 @@ async function loadPortfolioData() {
   }
 }
 
+async function sendChatMessage(rawMessage) {
+  const message = String(rawMessage || "").trim();
+  if (!message || state.chatbot.loading) return;
+
+  const stamp = new Date().toLocaleTimeString();
+  setState((s) => {
+    s.chatbot.messages.push({ role: "user", text: message, time: stamp });
+    s.chatbot.messages = s.chatbot.messages.slice(-40);
+    s.chatbot.input = "";
+    s.chatbot.loading = true;
+    s.chatbot.error = "";
+  });
+
+  try {
+    const context = {
+      name: state.user?.name || "Investor",
+      demoMode: Boolean(state.user?.isDemo),
+      riskProfile: state.tools?.risk?.result?.category || "Unknown",
+      holdingsCount: state.portfolio?.summary?.totalHoldings || 0,
+      totalInvested: state.portfolio?.summary?.totalInvested || 0,
+    };
+
+    const result = await apiRequest("/chatbot/suggest", {
+      method: "POST",
+      body: {
+        message,
+        context,
+      },
+    });
+
+    setState((s) => {
+      s.chatbot.loading = false;
+      s.chatbot.error = "";
+      s.chatbot.messages.push({
+        role: "assistant",
+        text: result.reply || "I could not generate suggestions right now.",
+        time: new Date().toLocaleTimeString(),
+      });
+      s.chatbot.messages = s.chatbot.messages.slice(-40);
+    });
+  } catch (error) {
+    setState((s) => {
+      s.chatbot.loading = false;
+      s.chatbot.error = parseApiError(error, "Unable to fetch AI suggestions");
+      s.chatbot.messages.push({
+        role: "assistant",
+        text: "I could not connect to Gemini right now. Please ensure GEMINI_API_KEY is set in backend .env and try again.",
+        time: new Date().toLocaleTimeString(),
+      });
+      s.chatbot.messages = s.chatbot.messages.slice(-40);
+    });
+  }
+}
+
 async function initializeSession() {
   const token = getToken();
   if (!token) {
@@ -262,6 +334,10 @@ function esc(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escMultiline(s) {
+  return esc(s).replaceAll("\n", "<br>");
 }
 
 function fmt(n) {
@@ -448,6 +524,7 @@ function shellView() {
     { id: "dashboard", label: "Dashboard", icon: "◈" },
     { id: "markets", label: "Markets", icon: "📊" },
     { id: "demo", label: "Demo Shares", icon: "🪙" },
+    { id: "chatbot", label: "AI Chatbot", icon: "🤖" },
     { id: "ipo", label: "IPO", icon: "🏛" },
     { id: "tools", label: "Tools", icon: "🔧" },
   ];
@@ -502,6 +579,7 @@ function shellView() {
           ${state.tab === "dashboard" ? dashboardView() : ""}
           ${state.tab === "markets" ? marketsView() : ""}
           ${state.tab === "demo" ? demoSharesView() : ""}
+          ${state.tab === "chatbot" ? chatbotView() : ""}
           ${state.tab === "ipo" ? ipoView() : ""}
           ${state.tab === "tools" ? toolsView() : ""}
         </section>
@@ -927,6 +1005,64 @@ function demoSharesView() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function chatbotView() {
+  const chat = state.chatbot;
+
+  return `
+    <div>
+      ${pageTitleHTML("AI Stock Coach", "Get practical tips and tricks for Indian stock market investing")}
+
+      <div class="card pad" style="margin-bottom:16px">
+        <p class="pMuted" style="margin-bottom:10px">Quick asks:</p>
+        <div class="tabs" style="margin:0">
+          ${chat.quickPrompts
+            .map(
+              (p) => `<button class="tabBtn" data-action="chat:quick" data-prompt="${esc(p)}">${esc(p)}</button>`,
+            )
+            .join("")}
+        </div>
+      </div>
+
+      <div class="card pad chatWrap">
+        <div class="chatFeed">
+          ${chat.messages
+            .map(
+              (m) => `
+                <div class="chatRow ${m.role === "user" ? "user" : "assistant"}">
+                  <div class="chatBubble ${m.role === "user" ? "user" : "assistant"}">
+                    <p>${escMultiline(m.text)}</p>
+                    <span>${esc(m.time || "")}</span>
+                  </div>
+                </div>
+              `,
+            )
+            .join("")}
+
+          ${chat.loading
+            ? `
+              <div class="chatRow assistant">
+                <div class="chatBubble assistant">
+                  <p>Thinking and preparing suggestions…</p>
+                </div>
+              </div>
+            `
+            : ""}
+        </div>
+
+        ${chat.error ? `<p class="pMuted" style="color:var(--red);margin:8px 0 0">${esc(chat.error)}</p>` : ""}
+
+        <div class="chatComposer">
+          <input class="input" data-bind="chat.input" value="${esc(chat.input)}" placeholder="Ask about SIP discipline, stock selection, risk management, valuation, or sector allocation" />
+          <button class="btnSecondary med" data-action="chat:clear">Clear</button>
+          <button class="btnPrimary med" data-action="chat:send" ${chat.loading ? "disabled" : ""}>Send</button>
+        </div>
+
+        <p class="pMuted" style="font-size:12px;margin-top:10px">Educational content only. Not financial advice.</p>
       </div>
     </div>
   `;
@@ -1631,11 +1767,50 @@ root.addEventListener("click", async (e) => {
       s.profile.form.phone = "";
       s.profile.error = "";
       s.profile.success = "";
+      s.chatbot.input = "";
+      s.chatbot.loading = false;
+      s.chatbot.error = "";
+      s.chatbot.messages = [
+        {
+          role: "assistant",
+          text: "Namaste! I am your Indian stock market assistant. Ask me for tips on SIP, risk management, sector rotation, stock analysis checklist, or beginner-friendly investing habits.",
+          time: new Date().toLocaleTimeString(),
+        },
+      ];
       s.demo = createDemoWallet();
       s.portfolio.holdings = [];
       s.portfolio.transactions = [];
       s.portfolio.summary = { totalInvested: 0, currentValue: 0, totalPnl: 0, totalPnlPercent: 0, totalHoldings: 0, totalQuantity: 0 };
     });
+    return;
+  }
+
+  if (action === "chat:quick") {
+    const prompt = btn.getAttribute("data-prompt") || "";
+    setState((s) => {
+      s.chatbot.input = prompt;
+      s.chatbot.error = "";
+    });
+    return;
+  }
+
+  if (action === "chat:clear") {
+    setState((s) => {
+      s.chatbot.messages = [
+        {
+          role: "assistant",
+          text: "Chat cleared. Ask me anything about Indian stock market tips, risk controls, and investing discipline.",
+          time: new Date().toLocaleTimeString(),
+        },
+      ];
+      s.chatbot.error = "";
+      s.chatbot.input = "";
+    });
+    return;
+  }
+
+  if (action === "chat:send") {
+    await sendChatMessage(state.chatbot.input);
     return;
   }
 
@@ -1972,6 +2147,10 @@ root.addEventListener("input", (e) => {
         s.auth.password = String(val);
         s.auth.error = "";
         break;
+      case "chat.input":
+        s.chatbot.input = String(val);
+        s.chatbot.error = "";
+        break;
       case "profile.name":
         s.profile.form.name = String(val);
         s.profile.error = "";
@@ -2112,6 +2291,16 @@ root.addEventListener("input", (e) => {
         break;
     }
   });
+});
+
+root.addEventListener("keydown", async (e) => {
+  const el = e.target;
+  const bind = el?.getAttribute?.("data-bind");
+  if (bind !== "chat.input") return;
+  if (e.key !== "Enter" || e.shiftKey) return;
+
+  e.preventDefault();
+  await sendChatMessage(state.chatbot.input);
 });
 
 // Close notifications when clicking outside dropdown
