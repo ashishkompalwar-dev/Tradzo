@@ -28,7 +28,7 @@ tredzo/
 cd backend
 cp .env.example .env   # Fill in your secrets
 npm install
-npm run dev            # Starts on http://localhost:5000
+npm run dev            
 ```
 
 ### Frontend
@@ -36,7 +36,7 @@ npm run dev            # Starts on http://localhost:5000
 ```bash
 cd frontend
 npm install
-npm run dev            # Serves on http://localhost:3000
+npm run dev            
 ```
 
 ## Environment Variables
@@ -45,8 +45,8 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 
 | Variable            | Description                          |
 |---------------------|--------------------------------------|
-| `PORT`              | API server port (default: 5000)      |
-| `CLIENT_URL`        | Frontend URL for CORS (default: localhost:3000) |
+| `PORT`              | API server port                      |
+| `CLIENT_URL`        | Frontend URL for CORS                |
 | `MONGO_URI`         | MongoDB connection string            |
 | `JWT_SECRET`        | JWT signing secret                   |
 | `ALPHA_VANTAGE_KEY` | Stock data API key                   |
@@ -57,3 +57,6 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 
 - **Frontend:** Vanilla HTML + CSS + JavaScript (single-page app with state management)
 - **Backend:** Node.js, Express, MongoDB (Mongoose), JWT auth, bcryptjs, node-cron
+
+## GitHub Repository
+    https://github.com/ashishkompalwar-dev/Tradzo 
